@@ -45,7 +45,7 @@ DISC_NAMES = {0: "no info", 1: "no disc", 2: "tray open", 3: "drive not ready",
               4: "disc ok", 100: "audio", 101: "data mode 1", 102: "data mode 2",
               103: "XA mode 2 form 1", 104: "XA mode 2 form 2", 105: "mixed audio+data"}
 
-TOOLS = ["ddrescue", "cdparanoia", "cdda2wav", "icedax", "7z", "bsdtar", "xorriso",
+TOOLS = ["ddrescue", "cdparanoia", "icedax", "7z", "bsdtar", "xorriso",
          "dvdbackup", "foremost", "photorec"]
 
 MPEG_PACK = b"\x00\x00\x01\xba"

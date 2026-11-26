@@ -17,7 +17,7 @@ bad sectors.*
 2. Apri il **Terminale** (menu → Terminale, oppure `Ctrl+Alt+T`).
 3. Installa gli strumenti, una volta sola (chiede la password):
    ```bash
-   sudo apt update && sudo apt install -y git python3 gddrescue p7zip-full libarchive-tools xorriso cdparanoia dvdbackup foremost testdisk
+   sudo apt update && sudo apt install -y git python3 gddrescue p7zip-full libarchive-tools xorriso cdparanoia icedax dvdbackup foremost testdisk
    ```
 4. Scarica il programma:
    ```bash
@@ -56,7 +56,7 @@ bad sectors.*
    - La mappa è nel formato di ddrescue: puoi **interrompere (Ctrl+C) e
      riprendere** rilanciando con la stessa cartella `-o`, anche con un
      **altro lettore** (lettori diversi leggono zone diverse).
-2. **CD audio** → `audio/` con `cdparanoia` (o `cdda2wav`/`icedax`).
+2. **CD audio** → `audio/` con `cdparanoia` (o `icedax` come riserva).
 3. **Estrazione file** → `files/<strumento>/` con `7z`, `bsdtar`, `xorriso`,
    `dvdbackup`. Se ci sono settori illeggibili li prova **tutti**, perché
    ognuno può salvare file diversi.
@@ -77,7 +77,7 @@ estratti, con dei piccoli buchi, e si possono ricostruire in seguito.
 ## Installazione (Linux Mint / Ubuntu)
 
 ```bash
-sudo apt install python3 gddrescue p7zip-full libarchive-tools xorriso cdparanoia dvdbackup foremost testdisk
+sudo apt install python3 gddrescue p7zip-full libarchive-tools xorriso cdparanoia icedax dvdbackup foremost testdisk
 ```
 
 Sono tutti facoltativi: lo script funziona anche solo con Python 3.8+.
