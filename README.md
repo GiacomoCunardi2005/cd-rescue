@@ -31,8 +31,11 @@ bad sectors.*
    lavorare. Mentre il programma gira il PC **non va in sospensione e non si
    spegne** (anche chiudendo il coperchio del portatile); lo schermo può
    spegnersi, è normale. Se è un portatile, tienilo attaccato alla corrente.
-   Se devi fermarlo premi `Ctrl+C`; per riprendere rilancia **lo
-   stesso comando**, e ripartirà da dove era arrivato.
+   - `Ctrl+C` **una volta** = salta il passo in corso (es. ddrescue che è
+     bloccato su una zona rovinata) e passa al successivo. Quello già letto
+     resta salvato.
+   - `Ctrl+C` **due volte di fila** = esce. Per riprendere rilancia **lo
+     stesso comando**, e ripartirà da dove era arrivato.
 6. Alla fine apri la cartella `recupero` nella tua home:
    - `files/` → i file del disco (per un DVD video: `files/7z/VIDEO_TS/...`)
    - `vob_sectors/` → video recuperato direttamente dai settori

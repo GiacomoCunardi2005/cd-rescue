@@ -61,13 +61,35 @@ def log(msg=""):
 log.file = None
 
 
+def skipped(what):
+    """Ctrl+C handler: skip `what` and go on; a second Ctrl+C within 2 s quits."""
+    now = time.monotonic()
+    if now - skipped.last < 2:
+        raise KeyboardInterrupt
+    skipped.last = now
+    log(f"\nCtrl+C: skipping {what}, going to the next step (Ctrl+C twice quickly to quit)")
+
+
+skipped.last = -10.0
+
+
 def run(cmd, **kw):
     log("$ " + shlex.join(cmd))
     try:
-        return subprocess.run(cmd, **kw).returncode
+        p = subprocess.Popen(cmd, **kw)
     except OSError as e:
         log(f"  failed to start: {e}")
         return -1
+    try:
+        return p.wait()
+    except KeyboardInterrupt:
+        try:
+            p.wait(timeout=15)  # the tool got the same Ctrl+C: let it save its state (ddrescue map)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            p.wait()
+        skipped(cmd[0])
+        return 130
 
 
 # ---------------------------------------------------------------- source
@@ -199,42 +221,55 @@ def rescue(src, img_path, map_path, retries=2, quick=False):
             log(f"  {name}: {100 * pos // max(nsec, 1)}%  good {st.count(b'+')}"
                 f"  bad {st.count(b'-') + st.count(b'*')}  of {nsec} sectors")
 
+    def big_reads(name, skipping):
+        # the fast pass jumps ahead after errors to grab the easy data first
+        i, skip = 0, 0
+        while i < nsec:
+            n = min(CLUSTER, nsec - i)
+            if b"?" in st[i:i + n]:
+                if read(i, n):
+                    skip = 0
+                else:
+                    st[i:i + n] = st[i:i + n].replace(b"?", b"*")
+                    if skipping:
+                        skip = min(max(skip * 2, CLUSTER), MAX_SKIP)
+                        i += skip
+                tick(name, i)
+            i += n
+
+    def trim():
+        # split failed clusters into single sectors
+        for i in [i for i in range(nsec) if st[i] == ord("*")]:
+            if not read(i, 1):
+                st[i] = ord("-")
+            tick("trim pass", i)
+
+    def retry():
+        # lowest speed, alternating direction
+        src.set_speed(1)
+        for attempt in range(retries):
+            bad = [i for i in range(nsec) if st[i] in b"-*"]
+            if not bad:
+                break
+            if attempt % 2:
+                bad.reverse()
+            src.drop_cache()
+            for k, i in enumerate(bad):
+                read(i, 1)
+                tick(f"retry {attempt + 1}/{retries}", k * nsec // len(bad))
+
+    passes = [("fast pass", lambda: big_reads("fast pass", True)),
+              ("fill pass", lambda: big_reads("fill pass", False))]
+    if not quick:
+        passes += [("trim pass", trim), ("retry passes", retry)]
     try:
-        # big reads; the first time jump ahead after errors to grab the easy data first
-        for name, skipping in (("fast pass", True), ("fill pass", False)):
-            i, skip = 0, 0
-            while i < nsec:
-                n = min(CLUSTER, nsec - i)
-                if b"?" in st[i:i + n]:
-                    if read(i, n):
-                        skip = 0
-                    else:
-                        st[i:i + n] = st[i:i + n].replace(b"?", b"*")
-                        if skipping:
-                            skip = min(max(skip * 2, CLUSTER), MAX_SKIP)
-                            i += skip
-                    tick(name, i)
-                i += n
-        if not quick:
-            # split failed clusters into single sectors
-            for i in [i for i in range(nsec) if st[i] == ord("*")]:
-                if not read(i, 1):
-                    st[i] = ord("-")
-                tick("trim pass", i)
-            # retries at lowest speed, alternating direction
-            src.set_speed(1)
-            for attempt in range(retries):
-                bad = [i for i in range(nsec) if st[i] in b"-*"]
-                if not bad:
-                    break
-                if attempt % 2:
-                    bad.reverse()
-                src.drop_cache()
-                for k, i in enumerate(bad):
-                    read(i, 1)
-                    tick(f"retry {attempt + 1}/{retries}", k * nsec // len(bad))
-            src.set_speed(0)
+        for name, fn in passes:
+            try:
+                fn()
+            except KeyboardInterrupt:
+                skipped(name)
     finally:
+        src.set_speed(0)
         save_map(map_path, st, src.size)
         os.close(fd)
     return st
@@ -416,6 +451,14 @@ def keep_awake():
     return p
 
 
+def step(name, fn, *args):
+    try:
+        return fn(*args)
+    except KeyboardInterrupt:
+        skipped(name)
+        return None
+
+
 def sha256(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -445,6 +488,9 @@ def main(argv=None):
     awake = keep_awake()
     try:
         return _main(a, out)
+    except KeyboardInterrupt:
+        log("\nquitting: progress saved in disc.map, rerun the same command to resume")
+        return 130
     finally:
         if awake:
             awake.terminate()
@@ -519,10 +565,11 @@ def _main(a, out):
         report["extracted_with"] = extract(img, os.path.join(out, "files"), bool(bad),
                                            src_path if is_drive else None)
     if not a.no_video:
-        report["vob_streams"] = carve_mpeg(img, os.path.join(out, "vob_sectors"))
+        report["vob_streams"] = step("VOB sector recovery", carve_mpeg, img,
+                                     os.path.join(out, "vob_sectors"))
     if not a.no_carve:
         cdir = os.path.join(out, "carved")
-        report["carved"] = len(carve(img, cdir))
+        report["carved"] = len(step("built-in carving", carve, img, cdir) or [])
         report["carvers"] = ["builtin"] + external_carvers(img, cdir)
     return finish(out, report)
 

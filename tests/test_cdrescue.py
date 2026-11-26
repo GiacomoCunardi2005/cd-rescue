@@ -79,6 +79,46 @@ class RescueTest(unittest.TestCase):
         self.assertEqual(st[:32], b"*" * 32)  # whole cluster lost, never split
         self.assertEqual(st[32:], b"+" * 32)
 
+    def test_ctrl_c_skips_pass_and_goes_on(self):
+        cr.skipped.last = -10.0
+        data = os.urandom(100 * S)
+        disc = FakeDisc(data, bad={50})
+        orig, hits = disc.read, []
+
+        def read(off, size):
+            hits.append(off)
+            if len(hits) == 2:  # Ctrl+C during the fast pass
+                raise KeyboardInterrupt
+            return orig(off, size)
+        disc.read = read
+        st = cr.rescue(disc, self.img, self.map)
+        self.assertEqual(st.count(b"+"), 99)  # fill/trim/retry passes still ran
+        self.assertEqual(st[50:51], b"-")
+        self.assertEqual(disc.speeds[-1], 0)
+
+    def test_second_ctrl_c_quits_with_map_saved(self):
+        cr.skipped.last = -10.0
+        disc = FakeDisc(os.urandom(100 * S))
+        n = [0]
+
+        def read(off, size):
+            n[0] += 1
+            if n[0] in (2, 3):  # two Ctrl+C in a row
+                raise KeyboardInterrupt
+            return disc.data[off:off + size]
+        disc.read = read
+        with self.assertRaises(KeyboardInterrupt):
+            cr.rescue(disc, self.img, self.map)
+        self.assertEqual(cr.load_map(self.map, 100)[:32], b"+" * 32)
+
+    def test_ctrl_c_on_external_tool_continues(self):
+        import signal
+        import threading
+        cr.skipped.last = -10.0
+        threading.Timer(0.3, os.kill, (os.getpid(), signal.SIGINT)).start()
+        rc = cr.run([sys.executable, "-c", "import time; time.sleep(1)"])
+        self.assertEqual(rc, 130)
+
     def test_load_map_maps_ddrescue_statuses(self):
         with open(self.map, "w") as f:
             f.write("# x\n0x00000000 ? 1\n0x00000000 0x00001000 +\n0x00001000 0x00000800 /\n"
