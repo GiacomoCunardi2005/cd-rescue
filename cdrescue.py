@@ -398,6 +398,24 @@ def external_carvers(img, outdir):
 
 # ---------------------------------------------------------------- main
 
+def keep_awake():
+    """Hold a logind lock so the PC won't suspend, shut down or sleep on lid close."""
+    if not shutil.which("systemd-inhibit"):
+        log("warning: systemd-inhibit not found: disable suspend in the power settings")
+        return None
+    # tail --pid exits with us, so the lock is released even if we crash or get killed
+    p = subprocess.Popen(["systemd-inhibit", "--what=sleep:shutdown:idle:handle-lid-switch",
+                          "--who=cdrescue", "--why=Recovering data from a disc", "--mode=block",
+                          "tail", f"--pid={os.getpid()}", "-f", "/dev/null"],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    time.sleep(0.5)
+    if p.poll() is not None:
+        log("warning: could not block suspend: disable it in the power settings")
+        return None
+    log("PC kept awake (no suspend/shutdown) until cdrescue ends")
+    return p
+
+
 def sha256(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -424,9 +442,12 @@ def main(argv=None):
     out = os.path.abspath(a.out or time.strftime("cdrescue-%Y%m%d-%H%M%S"))
     os.makedirs(out, exist_ok=True)
     log.file = open(os.path.join(out, "cdrescue.log"), "a")
+    awake = keep_awake()
     try:
         return _main(a, out)
     finally:
+        if awake:
+            awake.terminate()
         log.file.close()
         log.file = None
 

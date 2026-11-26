@@ -28,7 +28,10 @@ bad sectors.*
    sudo python3 cdrescue.py -o ~/recupero
    ```
    Su un disco graffiato può volerci **molto** tempo (anche ore): lascialo
-   lavorare. Se devi fermarlo premi `Ctrl+C`; per riprendere rilancia **lo
+   lavorare. Mentre il programma gira il PC **non va in sospensione e non si
+   spegne** (anche chiudendo il coperchio del portatile); lo schermo può
+   spegnersi, è normale. Se è un portatile, tienilo attaccato alla corrente.
+   Se devi fermarlo premi `Ctrl+C`; per riprendere rilancia **lo
    stesso comando**, e ripartirà da dove era arrivato.
 6. Alla fine apri la cartella `recupero` nella tua home:
    - `files/` → i file del disco (per un DVD video: `files/7z/VIDEO_TS/...`)

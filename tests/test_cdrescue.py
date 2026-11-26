@@ -118,6 +118,22 @@ class CarveTest(unittest.TestCase):
         self.assertEqual(os.path.getsize(streams[0]), 599 * S)
 
 
+@unittest.skipUnless(shutil.which("systemd-inhibit"), "needs systemd")
+class KeepAwakeTest(unittest.TestCase):
+    def listed(self):
+        return "cdrescue" in subprocess.run(["systemd-inhibit", "--list"],
+                                            capture_output=True, text=True).stdout
+
+    def test_lock_held_then_released(self):
+        p = cr.keep_awake()
+        if p is None:
+            self.skipTest("logind refused the lock here")
+        self.assertTrue(self.listed())
+        p.terminate()
+        p.wait()
+        self.assertFalse(self.listed())
+
+
 @unittest.skipUnless(shutil.which("xorriso"), "needs xorriso")
 class EndToEndTest(unittest.TestCase):
     def test_image_pipeline(self):
