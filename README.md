@@ -10,6 +10,36 @@ extracts files with every extractor available, saves raw DVD-Video (VOB)
 sectors even without a filesystem, carves files, and reports which files hit
 bad sectors.*
 
+## Guida passo passo (Linux Mint)
+
+1. Collega il lettore CD/DVD (va bene anche uno esterno USB) e inserisci il disco.
+   Se Mint apre una finestra o un lettore video, chiudili.
+2. Apri il **Terminale** (menu → Terminale, oppure `Ctrl+Alt+T`).
+3. Installa gli strumenti, una volta sola (chiede la password):
+   ```bash
+   sudo apt update && sudo apt install -y git python3 gddrescue p7zip-full libarchive-tools xorriso cdparanoia dvdbackup foremost testdisk
+   ```
+4. Scarica il programma:
+   ```bash
+   git clone https://github.com/GiacomoCunardi2005/cd-rescue && cd cd-rescue
+   ```
+5. Avvia il recupero (la cartella `recupero` verrà creata qui):
+   ```bash
+   sudo python3 cdrescue.py -o ~/recupero
+   ```
+   Su un disco graffiato può volerci **molto** tempo (anche ore): lascialo
+   lavorare. Se devi fermarlo premi `Ctrl+C`; per riprendere rilancia **lo
+   stesso comando**, e ripartirà da dove era arrivato.
+6. Alla fine apri la cartella `recupero` nella tua home:
+   - `files/` → i file del disco (per un DVD video: `files/7z/VIDEO_TS/...`)
+   - `vob_sectors/` → video recuperato direttamente dai settori
+   - `damaged_files.txt` → elenco dei file con pezzi mancanti
+   - `disc.iso` + `disc.map` → copia completa del disco: **conservale**, servono
+     per ricostruire i pezzi mancanti o per riprovare con un altro lettore.
+7. (Facoltativo) Per migliorare il risultato, inserisci lo stesso disco in un
+   **altro lettore** e rilancia il comando del punto 5 con la stessa cartella
+   `-o ~/recupero`: vengono riletti solo i settori che mancano.
+
 ## Cosa fa
 
 1. **Immagine del disco** → `disc.iso` + `disc.map`
